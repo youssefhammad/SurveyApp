@@ -48,65 +48,13 @@ const SurveyPage = ({ surveyId }) => {
 
   const totalSteps = survey ? survey.questions.length : 0;
 
-  const validationSchema = yup.object().shape(
-    survey
-      ? survey.questions.reduce((schema, question) => {
-          let validator = yup.mixed();
-
-          // Add specific validations based on question type
-          switch (question.typeName) {
-            case "Multiple Choice":
-              validator = yup
-                .string()
-                .oneOf(
-                  question.options.map((opt) => opt.value),
-                  "Please select a valid option"
-                )
-                .required(question.required ? "This field is required" : false);
-              break;
-            case "Text":
-              validator = yup
-                .string()
-                .max(500, "Maximum 500 characters allowed")
-                .required(question.required ? "This field is required" : false);
-              break;
-            case "Decimal Number":
-              validator = yup
-                .number()
-                .typeError("Please enter a valid number")
-                .positive("Number must be positive")
-                .required(question.required ? "This field is required" : false);
-              break;
-            case "Boolean":
-              validator = yup
-                .boolean()
-                .oneOf([true, false], "Please toggle yes or no")
-                .required(question.required ? "This field is required" : false);
-              break;
-            case "Date":
-              validator = yup
-                .date()
-                .typeError("Please enter a valid date")
-                .required(question.required ? "This field is required" : false);
-              break;
-            default:
-              break;
-          }
-
-          schema[`responses.${question.id}`] = validator;
-          return schema;
-        }, {})
-      : {}
-  );
-
   const methods = useForm({
-    resolver: yupResolver(validationSchema),
     defaultValues: {
       responses: {},
       surveyId: survey ? survey.id : null,
       metadata: "",
     },
-    mode: "onChange", // Validate on change for immediate feedback
+    mode: "onChange",
   });
 
   const { handleSubmit, reset, formState, setValue } = methods;
