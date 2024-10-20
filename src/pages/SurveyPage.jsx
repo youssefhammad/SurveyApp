@@ -57,7 +57,7 @@ const SurveyPage = ({ surveyId }) => {
     mode: "onChange",
   });
 
-  const { handleSubmit, reset, formState, setValue } = methods;
+  const { handleSubmit, reset, formState, setValue, trigger } = methods;
 
   useEffect(() => {
     if (survey) {
@@ -71,13 +71,67 @@ const SurveyPage = ({ surveyId }) => {
 
   const onSubmit = async (data) => {
     try {
-      await submitResponse(data);
+      // Transform responses from an object to an array
+      const transformedResponses = survey.questions.map((question) => {
+        const responseValue = data.responses[question.id];
+        console.log("responseValue", responseValue);
+
+        let response = {
+          QuestionId: question.id,
+          OptionId: null,
+          ValueText: null,
+          ValueNumber: null,
+          ValueBoolean: null,
+          ValueDate: null,
+        };
+
+        switch (question.questionTypeName) {
+          case "Multiple Choice":
+            response.OptionId =
+              responseValue !== undefined ? parseInt(responseValue, 10) : null;
+            break;
+          case "Text":
+            response.ValueText =
+              responseValue !== undefined ? String(responseValue) : null;
+            break;
+          case "Decimal Number":
+            response.ValueNumber =
+              responseValue !== undefined ? String(responseValue) : null;
+            break;
+          case "Boolean":
+            response.ValueBoolean =
+              responseValue !== undefined ? String(responseValue) : null;
+            break;
+          case "Date":
+            response.ValueDate =
+              responseValue !== undefined
+                ? new Date(responseValue).toISOString()
+                : null;
+            break;
+          default:
+            console.warn(
+              `Unhandled question type: ${question.questionTypeName}`
+            );
+            break;
+        }
+
+        return response;
+      });
+
+      const dto = {
+        SurveyId: survey.id,
+        Metadata: data.metadata,
+        Responses: transformedResponses,
+      };
+
+      await submitResponse(dto);
+
       setSubmitSuccess("Survey submitted successfully!");
       setSubmitError(null);
       reset({
         responses: {},
-        surveyId: survey.id,
-        metadata: "",
+        SurveyId: survey.id,
+        Metadata: "",
       });
       setActiveStep(0);
       navigate("/thank-you");
@@ -88,8 +142,10 @@ const SurveyPage = ({ surveyId }) => {
     }
   };
 
-  const handleNext = () => {
-    if (activeStep < totalSteps - 1) {
+  const handleNext = async () => {
+    const currentQuestion = survey.questions[activeStep];
+    const isStepValid = await trigger(`responses.${currentQuestion.id}`);
+    if (isStepValid) {
       setActiveStep((prevActiveStep) => prevActiveStep + 1);
     }
   };
@@ -111,24 +167,8 @@ const SurveyPage = ({ surveyId }) => {
   if (error || !survey) {
     return (
       <Container maxWidth="sm" sx={{ textAlign: "center", mt: 10 }}>
-        <Alert severity="error">{error}</Alert>
-      </Container>
-    );
-  }
-
-  if (loading) {
-    return (
-      <Container maxWidth="sm" sx={{ textAlign: "center", mt: 10 }}>
-        <CircularProgress />
-      </Container>
-    );
-  }
-
-  if (error || !survey) {
-    return (
-      <Container maxWidth="sm" sx={{ textAlign: "center", mt: 10 }}>
         <Alert severity="error">
-          Failed to load survey. Please try again later.
+          {error || "Failed to load survey. Please try again later."}
         </Alert>
       </Container>
     );
@@ -152,7 +192,7 @@ const SurveyPage = ({ surveyId }) => {
         <Box sx={{ width: "100%", mt: 2 }}>
           <LinearProgress
             variant="determinate"
-            value={(activeStep / totalSteps) * 100}
+            value={((activeStep + 1) / totalSteps) * 100}
           />
           <Typography variant="body2" color="textSecondary" sx={{ mt: 0.5 }}>
             Step {activeStep + 1} of {totalSteps}

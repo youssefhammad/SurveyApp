@@ -12,7 +12,7 @@ export const fetchSurvey = async (surveyId) => {
 
 export const submitResponse = async (responseData) => {
   try {
-    const response = await api.post(`/responses/Submit`, responseData);
+    const response = await api.post(`/Respondents`, responseData);
     return response.data;
   } catch (error) {
     throw error;
